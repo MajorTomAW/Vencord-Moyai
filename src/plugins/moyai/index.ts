@@ -19,7 +19,7 @@
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import { sleep } from "@utils/misc";
-import definePlugin, { makeRange, OptionType } from "@utils/types";
+import definePlugin, { OptionType } from "@utils/types";
 import { Message, ReactionEmoji } from "@vencord/discord-types";
 import { RelationshipStore, SelectedChannelStore, UserStore } from "@webpack/common";
 
@@ -53,7 +53,6 @@ interface IVoiceChannelEffectSendEvent {
 const MOYAI = "🗿";
 const MOYAI_URL =
     "https://raw.githubusercontent.com/MeguminSama/VencordPlugins/main/plugins/moyai/moyai.mp3";
-
 const MOYAI_URL_HD =
     "https://raw.githubusercontent.com/MeguminSama/VencordPlugins/main/plugins/moyai/moyai_hd.wav";
 
@@ -61,7 +60,7 @@ const settings = definePluginSettings({
     volume: {
         description: "Volume of the 🗿🗿🗿",
         type: OptionType.SLIDER,
-        markers: makeRange(0, 1, 0.1),
+        markers: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
         default: 0.5,
         stickToMarkers: false
     },
@@ -87,6 +86,11 @@ const settings = definePluginSettings({
         description: "Ignore blocked users",
         type: OptionType.BOOLEAN,
         default: true
+    },
+    someRandomShit: {
+        description: "Randome shit setting",
+        type: OptionType.BOOLEAN,
+        default: false
     }
 });
 
@@ -101,7 +105,7 @@ export default definePlugin({
             if (optimistic || type !== "MESSAGE_CREATE") return;
             if (message.state === "SENDING") return;
             if (settings.store.ignoreBots && message.author?.bot) return;
-            if (settings.store.ignoreBlocked && message.author && RelationshipStore.isBlocked(message.author.id)) return;
+            if (settings.store.ignoreBlocked && RelationshipStore.isBlocked(message.author?.id)) return;
             if (!message.content) return;
             if (channelId !== SelectedChannelStore.getChannelId()) return;
 
@@ -148,7 +152,11 @@ function countMatches(sourceString: string, pattern: RegExp) {
     if (!pattern.global)
         throw new Error("pattern must be global");
 
-    return sourceString.match(pattern)?.length ?? 0;
+    let i = 0;
+    while (pattern.test(sourceString))
+        i++;
+
+    return i;
 }
 
 const customMoyaiRe = /<a?:\w*moy?ai\w*:\d{17,20}>/gi;
@@ -160,14 +168,37 @@ function getMoyaiCount(message: string) {
     return Math.min(count, 10);
 }
 
-function boom() {
-    if (!settings.store.triggerWhenUnfocused && !document.hasFocus()) return;
-    const audioElement = document.createElement("audio");
 
-    audioElement.src = settings.store.quality === "HD"
+const audioSrcPromises: Record<string, Promise<string>> = {};
+
+function getMoyaiAudioSrc() {
+    const url = settings.store.quality === "HD"
         ? MOYAI_URL_HD
         : MOYAI_URL;
 
-    audioElement.volume = settings.store.volume;
-    audioElement.play().catch(() => { });
+    if (!audioSrcPromises[url]) {
+        audioSrcPromises[url] = fetch(url)
+            .then(response => {
+                if (!response.ok)
+                    throw new Error(`Failed to fetch Moyai sound (${response.status})`);
+                return response.blob();
+            })
+            .then(blob => URL.createObjectURL(blob));
+    }
+
+    return audioSrcPromises[url];
 }
+
+async function boom() {
+    if (!settings.store.triggerWhenUnfocused && !document.hasFocus()) return;
+    const audioElement = document.createElement("audio");
+
+    try {
+        audioElement.src = await getMoyaiAudioSrc();
+        audioElement.volume = settings.store.volume;
+        await audioElement.play();
+    } catch (error) {
+        console.error("Moyai failed to play sound", error);
+    }
+}
+
