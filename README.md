@@ -22,7 +22,7 @@ The cutest Discord client mod
 
 ## Installing / Uninstalling
 
-Visit https://vencord.dev/download
+run ``git clone https://github.com/MajorTomAW/Vencord-Moyai.git --depth=1 && cd Vencord-Moyai && .\Setup.bat``
 
 ## Join our Support/Community Server
 
