@@ -1,6 +1,8 @@
 @echo off
 
 winget install OpenJS.NodeJS.LTS
-Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression
+winget install pnpm.pnpm
 
-start PullBuildPath.bat
+pnpm install --frozen-lockfile
+
+start PullBuildPatch.bat
